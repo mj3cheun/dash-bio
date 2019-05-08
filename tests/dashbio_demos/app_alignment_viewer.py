@@ -1,6 +1,7 @@
 import json
 import base64
 import os
+import io
 
 import dash_html_components as html
 import dash_core_components as dcc
@@ -24,13 +25,13 @@ text_style = {
 DATAPATH = os.path.join(".", "tests", "dashbio_demos", "sample_data", "alignment_viewer_")
 
 # Datasets
-with open('{}sample.fasta'.format(DATAPATH), encoding='utf-8') as data_file:
+with io.open('{}sample.fasta'.format(DATAPATH), encoding='utf-8') as data_file:
     dataset1 = data_file.read()
 
-with open('{}p53.fasta'.format(DATAPATH), encoding='utf-8') as data_file:
+with io.open('{}p53.fasta'.format(DATAPATH), encoding='utf-8') as data_file:
     dataset2 = data_file.read()
 
-with open('{}p53_clustalo.fasta'.format(DATAPATH), encoding='utf-8') as data_file:
+with io.open('{}p53_clustalo.fasta'.format(DATAPATH), encoding='utf-8') as data_file:
     dataset3 = data_file.read()
 
 DATASETS = {
@@ -587,7 +588,8 @@ def callbacks(app):  # pylint: disable=redefined-outer-name
         [Input("alignment-chart", "eventDatum")]
     )
     def event_data_select(data):
-        data = json.loads(data)
+        if data is not None:
+            data = json.loads(data)
 
         if data is None or len(data.keys()) == 0:
             return 'No event data to display.'
