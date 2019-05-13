@@ -1,26 +1,29 @@
 import {Component} from 'react';
 import PropTypes from 'prop-types';
 import {
-    speckRenderer as SpeckRenderer,
+    speckRenderer,
     speckSystem,
     speckView,
-    speckInteractions as SpeckInteractions,
+    speckInteractions,
     speckPresetViews,
 } from 'speck';
 
 export default class Speck extends Component {
 
     constructor(props) {
+        console.log('constructor');
         super(props);
 
+        const {view} = this.props;
+
         this.state = {
-            refreshView: false,
             renderer: null,
             interactions: {
                 buttonDown: false,
                 lastX: 0.0,
                 lastY: 0.0,
             },
+            view: view ? Object.assign(speckView.new(), view) : {},
         };
 
         // setting refs in this way to allow for easier updating to
@@ -32,61 +35,42 @@ export default class Speck extends Component {
             this.container = e;
         };
 
-        // initialize view if anything is supplied
-        if (props.view) {
-            this.props.view = Object.assign(speckView.new(), props.view);
-        }
+        window.requestAnimationFrame(this.speckRender);
 
-        this.loop = this.loop.bind(this);
+        this.speckRender = this.speckRender.bind(this);
         this.loadStructure = this.loadStructure.bind(this);
+
+        // REMOVE
+        window.speckky = this;
     }
 
     componentDidMount() {
+        console.log('didmount');
         // add canvas, container, and renderer
         const canvas = this.canvas;
         const container = this.container;
         const resolution = 200;
         const aoResolution = 300;
-        const renderer = new SpeckRenderer(canvas, resolution, aoResolution);
-
-        this.setState(
-            {
-                renderer: renderer,
-                refreshView: true,
-            },
-            function() {
-                this.loadStructure(this.props.data); // eslint-disable-line no-invalid-this
-            }
-        );
+        const renderer = new speckRenderer(canvas, resolution, aoResolution);
 
         // add event listeners
-        const interactionHandler = new SpeckInteractions( // eslint-disable-line no-unused-vars
+        const interactionHandler = new speckInteractions(
             this,
             renderer,
             container
         );
-        this.loop();
+
+        this.setState({
+                renderer,
+            },
+            () => this.loadStructure()
+        );
     }
 
-    shouldComponentUpdate(nextProps) {
-        const {view, data, presetView} = this.props;
-
-        let needsUpdate = false;
-
-        // update if data have changed
-        if (
-            data.length !== nextProps.data.length ||
-            Object.keys(data).some(
-                propertyName =>
-                    data[propertyName] !== nextProps.data[propertyName]
-            )
-        ) {
-            this.props.setProps({
-                data: nextProps.data,
-            });
-
-            needsUpdate = true;
-        }
+    componentWillReceiveProps(nextProps) {
+        console.log('willrecieveprops');
+        const {presetView} = this.props;
+        const {view} = this.state;
 
         // add the appropriate preset view, if that has recently changed
         if (presetView !== nextProps.presetView) {
@@ -94,48 +78,46 @@ export default class Speck extends Component {
                 view,
                 speckPresetViews[nextProps.presetView]
             );
-            this.props.setProps({
+            this.setState({
                 view: v,
             });
-
-            needsUpdate = true;
         }
 
         // finally apply the user-supplied view parameters
         if (
             Object.keys(view).length !== Object.keys(nextProps.view).length ||
-            Object.keys(view).some(
-                propertyName =>
-                    view[propertyName] !== nextProps.view[propertyName]
-            )
+                Object.keys(view).some(
+                    propertyName =>
+                        view[propertyName] !== nextProps.view[propertyName]
+                )
         ) {
             const v = Object.assign(view, nextProps.view);
-            this.props.setProps({
+            this.setState({
                 view: v,
             });
-
-            needsUpdate = true;
         }
-
-        return needsUpdate;
     }
 
     componentDidUpdate() {
-        const {data, view} = this.props;
+        console.log('didupdate');
+        const {renderer, view} = this.state;
 
-        if (view && this.state.renderer && data.length > 0) {
-            this.loadStructure(data);
+        if (view && renderer) {
+            this.loadStructure();
         }
     }
 
-    loadStructure(data) {
+    loadStructure() {
+        const {data} = this.props;
+
         // avoid trying to load an empty system
         if (data.length === 0) {
             return;
         }
 
-        const system = speckSystem.new();
+        const {view, renderer} = this.state;
 
+        const system = speckSystem.new();
         for (let i = 0; i < data.length; i++) {
             // get the coordinate data
             const a = data[i];
@@ -146,34 +128,27 @@ export default class Speck extends Component {
         speckSystem.center(system);
         speckSystem.calculateBonds(system);
 
-        const renderer = this.state.renderer;
-        const view = this.props.view;
-
         renderer.setSystem(system, view);
 
         // update the resolution
         renderer.setResolution(view.resolution, view.aoRes);
 
-        this.setState({
-            refreshView: true,
-        });
+        this.speckRender();
     }
 
-    loop() {
-        if (this.state.renderer && this.props.view) {
-            if (this.state.refreshView) {
-                this.state.renderer.reset();
-                this.setState({
-                    refreshView: false,
-                });
-            }
-            this.state.renderer.render(this.props.view);
+    speckRender() {
+        const {renderer, view} = this.state;
+
+        if (renderer && view) {
+            renderer.reset();
+            renderer.render(view);
         }
-        requestAnimationFrame(this.loop);
     }
 
     render() {
-        const {id, view} = this.props;
+        console.log('render');
+        const {id} = this.props;
+        const {view} = this.state;
 
         const divStyle = {
             height: view.resolution,
