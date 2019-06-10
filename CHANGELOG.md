@@ -8,6 +8,7 @@
 ### Fixed
 * Fixed issue with Speck not responding to preset changes.
 * Refactored Speck component and implemented general bug fixes.
+* Made Speck component compatible with refactored Speck library
 
 ## [0.1.0] - 2019-05-27
 
